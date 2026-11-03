@@ -63,7 +63,7 @@
 <header>
   <h1>&#127942; Halo 5-Player LAN Tournament Tracker</h1>
   <p>10 Rounds &middot; 4 Active Players per Round (1 Resting) &middot; 10-Minute Limit per Round</p>
-  <p>Maps: 5 Halo 2 rounds, 5 Halo 3 rounds &mdash; everyone plays at least 3 of each.</p>
+  <p>Maps: rounds 1&ndash;5 are Halo 2, rounds 6&ndash;10 are Halo 3 &mdash; everyone plays 4 of each.</p>
   <p>Players: <strong>Joe, Brian, DJ, Fort, Money</strong></p>
 </header>
 <main>
@@ -132,14 +132,14 @@ const STORAGE_KEY = "halo-scoreboard-v1";
 
 // Default schedule, from the Halo 10-Round Tournament Scorecard.
 const DEFAULT_ROUNDS = [
-  { mode: "2v2 Team Slayer", map: "Lockout / Midship",     type: "team", teams: [["Joe","Brian"],["DJ","Fort"]],     rest: "Money", era: "Halo 2" },
-  { mode: "4P FFA Fiesta",   map: "The Pit / Guardian",     type: "ffa",  players: ["Joe","Brian","DJ","Money"],       rest: "Fort",  era: "Halo 3" },
-  { mode: "2v2 Oddball",     map: "Midship / Beaver Creek", type: "team", teams: [["Joe","Fort"],["Brian","Money"]],    rest: "DJ",    era: "Halo 2" },
-  { mode: "2v2 SWAT",        map: "Beaver Creek / Zanzibar", type: "team", teams: [["DJ","Money"],["Joe","Fort"]],     rest: "Brian", era: "Halo 2" },
-  { mode: "4P FFA Classic",  map: "Ivory Tower / Zanzibar", type: "ffa",  players: ["Brian","DJ","Fort","Money"],      rest: "Joe",   era: "Halo 2" },
+  { mode: "2v2 Team Slayer", map: "Lockout / Midship",      type: "team", teams: [["Joe","Brian"],["DJ","Fort"]],     rest: "Money", era: "Halo 2" },
+  { mode: "4P FFA Fiesta",   map: "Midship / Beaver Creek", type: "ffa",  players: ["Joe","Brian","DJ","Money"],       rest: "Fort",  era: "Halo 2" },
+  { mode: "2v2 Oddball",     map: "Beaver Creek / Zanzibar", type: "team", teams: [["Joe","Fort"],["Brian","Money"]],   rest: "DJ",    era: "Halo 2" },
+  { mode: "2v2 SWAT",        map: "Ivory Tower / Zanzibar", type: "team", teams: [["DJ","Money"],["Joe","Fort"]],      rest: "Brian", era: "Halo 2" },
+  { mode: "4P FFA Classic",  map: "Lockout / Ivory Tower",  type: "ffa",  players: ["Brian","DJ","Fort","Money"],      rest: "Joe",   era: "Halo 2" },
   { mode: "2v2 CTF",         map: "The Pit / Construct",    type: "team", teams: [["Joe","DJ"],["Brian","Fort"]],      rest: "Money", era: "Halo 3" },
   { mode: "2v2 Team Slayer", map: "Construct / Guardian",   type: "team", teams: [["Joe","Money"],["DJ","Fort"]],      rest: "Brian", era: "Halo 3" },
-  { mode: "4P FFA Fiesta",   map: "Lockout / Ivory Tower",  type: "ffa",  players: ["Joe","Brian","Fort","Money"],     rest: "DJ",    era: "Halo 2" },
+  { mode: "4P FFA Fiesta",   map: "The Pit / Guardian",     type: "ffa",  players: ["Joe","Brian","Fort","Money"],     rest: "DJ",    era: "Halo 3" },
   { mode: "2v2 Oddball",     map: "Construct / The Pit",    type: "team", teams: [["Brian","DJ"],["Fort","Money"]],     rest: "Joe",   era: "Halo 3" },
   { mode: "4P FFA Snipers",  map: "Guardian / Construct",   type: "ffa",  players: ["Joe","Brian","DJ","Money"],       rest: "Fort",  era: "Halo 3" }
 ];
