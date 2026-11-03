@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Halo 5-Player LAN Tournament Tracker</title>
+<style>
+  :root { --bg:#0b0f14; --panel:#141b24; --panel2:#1b2531; --line:#2a3646; --text:#e8eef4; --dim:#93a5b5; --green:#7dc242; --amber:#ffb000; --red:#ff4d4d; --blue:#4da6ff; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family: "Segoe UI", system-ui, -apple-system, Arial, sans-serif; background:var(--bg); color:var(--text); }
+  header { padding:20px 24px 12px; border-bottom:2px solid var(--green); }
+  header h1 { margin:0 0 4px; font-size:28px; letter-spacing:.5px; }
+  header p { margin:4px 0; color:var(--dim); }
+  main { max-width:1200px; margin:0 auto; padding:16px 24px 48px; }
+  section { background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:16px 20px; margin-bottom:20px; }
+  h2 { margin:0 0 12px; font-size:20px; }
+  h2 .tag { font-size:12px; color:var(--dim); font-weight:normal; margin-left:8px; }
+  table { width:100%; border-collapse:collapse; }
+  th, td { padding:9px 10px; border-bottom:1px solid var(--line); text-align:left; vertical-align:middle; }
+  th { color:var(--dim); font-size:13px; text-transform:uppercase; letter-spacing:.5px; }
+  tr:last-child td { border-bottom:none; }
+  .num { text-align:center; font-weight:bold; }
+  .rest { color:var(--amber); font-weight:bold; }
+  .points { text-align:center; font-weight:bold; font-size:17px; }
+  .total { text-align:center; font-weight:bold; font-size:20px; color:var(--green); }
+  .rank { text-align:center; font-weight:bold; font-size:18px; }
+  .rank1 { color:#ffd700; } .rank2 { color:#c0c0c0; } .rank3 { color:#cd7f32; }
+  .teamA { color:var(--blue); font-weight:bold; }
+  .teamB { color:var(--red); font-weight:bold; }
+  .vs { color:var(--dim); margin:0 6px; }
+  button { cursor:pointer; border:1px solid var(--line); background:var(--panel2); color:var(--text); border-radius:6px; padding:7px 12px; font-size:14px; }
+  button:hover { border-color:var(--green); }
+  button.primary { background:var(--green); border-color:var(--green); color:#08130a; font-weight:bold; }
+  button.danger { background:transparent; border-color:var(--red); color:var(--red); }
+  button:disabled { opacity:.45; cursor:default; }
+  button.chosen { outline:2px solid var(--green); }
+  input[type=text], input[type=number], select { background:#0e141b; color:var(--text); border:1px solid var(--line); border-radius:6px; padding:7px 9px; font-size:14px; }
+  input[type=text] { width:100%; }
+  .score-input { width:74px; text-align:center; }
+  .controls { display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  .timer { display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  .timer .clock { font-size:44px; font-weight:bold; font-variant-numeric:tabular-nums; letter-spacing:2px; }
+  .timer .clock.low { color:var(--red); }
+  .timer .label { color:var(--dim); }
+  .rules li { margin:6px 0; }
+  .note { color:var(--dim); font-size:13px; }
+  .era-tag { font-size:12px; color:var(--green); margin-left:6px; white-space:nowrap; }
+  .result-line { font-size:13px; color:var(--dim); margin-top:6px; }
+  .warn { color:var(--amber); font-size:13px; margin-top:6px; }
+  .edit-input { display:none; }
+  body.editing .edit-input { display:block; }
+  body.editing .view-text { display:none; }
+  footer { text-align:center; color:var(--dim); font-size:13px; padding:10px; }
+  @media (max-width:760px) {
+    header h1 { font-size:22px; }
+    main { padding:12px 12px 40px; }
+    section { padding:12px; overflow-x:auto; }
+    .timer .clock { font-size:34px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>&#127942; Halo 5-Player LAN Tournament Tracker</h1>
+  <p>10 Rounds &middot; 4 Active Players per Round (1 Resting) &middot; 10-Minute Limit per Round</p>
+  <p>Maps: 5 Halo 2 rounds, 5 Halo 3 rounds &mdash; everyone plays at least 3 of each.</p>
+  <p>Players: <strong>Joe, Brian, DJ, Fort, Money</strong></p>
+</header>
+<main>
+
+  <section id="timer-section">
+    <h2>Round Timer</h2>
+    <div class="timer">
+      <div class="clock" id="clock">10:00</div>
+      <div>
+        <button class="primary" id="timer-start">Start</button>
+        <button id="timer-pause">Pause</button>
+        <button id="timer-reset">Reset</button>
+      </div>
+      <span class="label">10-minute limit per round. Timer runs in this browser tab.</span>
+    </div>
+  </section>
+
+  <section id="scoring-section">
+    <h2>Scoring System</h2>
+    <ul class="rules">
+      <li><strong>2v2 Team Modes</strong> (Slayer, Oddball, CTF, SWAT): winning team <strong>+3 points</strong> to each winning player, losing team 0.</li>
+      <li><strong>4-Player Free-For-All</strong> (FFA Fiesta, Classic, Snipers): 1st <strong>+4</strong>, 2nd <strong>+2</strong>, 3rd <strong>+1</strong>, 4th <strong>0</strong>.</li>
+      <li><strong>Resting players:</strong> 0 points. Everyone rests exactly 2 rounds.</li>
+    </ul>
+    <p class="note">Scores save automatically in this browser. Use the same laptop or browser all night to keep the tally.</p>
+  </section>
+
+  <section id="schedule-section">
+    <h2>Match Schedule &amp; Score Sheet <span class="tag">tap Edit schedule to change a mode or map</span></h2>
+    <div class="controls">
+      <button id="edit-toggle">Edit schedule</button>
+      <button class="danger" id="reset-all">Reset all scores</button>
+    </div>
+    <div style="overflow-x:auto;">
+    <table id="schedule-table">
+      <thead>
+        <tr><th class="num">Rnd</th><th>Mode</th><th>Map</th><th>Matchup</th><th>Rest</th><th>Result</th></tr>
+      </thead>
+      <tbody id="schedule-body"></tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="standings-section">
+    <h2>Individual Standings &amp; Point Tally</h2>
+    <div style="overflow-x:auto;">
+    <table id="standings-table">
+      <thead id="standings-head"></thead>
+      <tbody id="standings-body"></tbody>
+    </table>
+    </div>
+  </section>
+
+  <section id="rest-section">
+    <h2>Player Rest Verification</h2>
+    <ul class="rules" id="rest-list"></ul>
+  </section>
+
+</main>
+<footer>Halo LAN scoreboard &middot; scores live in this browser (localStorage) &middot; source data: Halo 10-Round Tournament Scorecard</footer>
+
+<script>
+"use strict";
+const PLAYERS = ["Joe", "Brian", "DJ", "Fort", "Money"];
+const STORAGE_KEY = "halo-scoreboard-v1";
+
+// Default schedule, from the Halo 10-Round Tournament Scorecard.
+const DEFAULT_ROUNDS = [
+  { mode: "2v2 Team Slayer", map: "Lockout / Midship",     type: "team", teams: [["Joe","Brian"],["DJ","Fort"]],     rest: "Money", era: "Halo 2" },
+  { mode: "4P FFA Fiesta",   map: "The Pit / Guardian",     type: "ffa",  players: ["Joe","Brian","DJ","Money"],       rest: "Fort",  era: "Halo 3" },
+  { mode: "2v2 Oddball",     map: "Midship / Beaver Creek", type: "team", teams: [["Joe","Fort"],["Brian","Money"]],    rest: "DJ",    era: "Halo 2" },
+  { mode: "2v2 SWAT",        map: "Beaver Creek / Zanzibar", type: "team", teams: [["DJ","Money"],["Joe","Fort"]],     rest: "Brian", era: "Halo 2" },
+  { mode: "4P FFA Classic",  map: "Ivory Tower / Zanzibar", type: "ffa",  players: ["Brian","DJ","Fort","Money"],      rest: "Joe",   era: "Halo 2" },
+  { mode: "2v2 CTF",         map: "The Pit / Construct",    type: "team", teams: [["Joe","DJ"],["Brian","Fort"]],      rest: "Money", era: "Halo 3" },
+  { mode: "2v2 Team Slayer", map: "Construct / Guardian",   type: "team", teams: [["Joe","Money"],["DJ","Fort"]],      rest: "Brian", era: "Halo 3" },
+  { mode: "4P FFA Fiesta",   map: "Lockout / Ivory Tower",  type: "ffa",  players: ["Joe","Brian","Fort","Money"],     rest: "DJ",    era: "Halo 2" },
+  { mode: "2v2 Oddball",     map: "Construct / The Pit",    type: "team", teams: [["Brian","DJ"],["Fort","Money"]],     rest: "Joe",   era: "Halo 3" },
+  { mode: "4P FFA Snipers",  map: "Guardian / Construct",   type: "ffa",  players: ["Joe","Brian","DJ","Money"],       rest: "Fort",  era: "Halo 3" }
+];
+
+// State: { edits: {roundIndex: {mode, map}}, results: {roundIndex: {winner:0|1, scoreA, scoreB} | {places:[p1,p2,p3,p4]}} }
+let state = loadState();
+
+function loadState() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") return { edits: parsed.edits || {}, results: parsed.results || {} };
+    }
+  } catch (e) { /* fresh state on bad storage */ }
+  return { edits: {}, results: {} };
+}
+function saveState() {
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* storage full/blocked: page still works */ }
+}
+function roundData(i) {
+  const base = DEFAULT_ROUNDS[i];
+  const edit = state.edits[i] || {};
+  return {
+    mode: edit.mode !== undefined ? edit.mode : base.mode,
+    map: edit.map !== undefined ? edit.map : base.map,
+    type: base.type, teams: base.teams, players: base.players, rest: base.rest, era: base.era
+  };
+}
+
+// Points per player per round, from results. Returns {player: {roundIndex: points|null("REST")}}
+function computePoints() {
+  const table = {};
+  PLAYERS.forEach(p => { table[p] = {}; });
+  DEFAULT_ROUNDS.forEach((base, i) => {
+    const res = state.results[i];
+    PLAYERS.forEach(p => { table[p][i] = (p === base.rest) ? "REST" : 0; });
+    if (!res) return;
+    if (base.type === "team") {
+      if (res.winner === 0 || res.winner === 1) {
+        base.teams[res.winner].forEach(p => { table[p][i] = 3; });
+      }
+    } else if (base.type === "ffa" && Array.isArray(res.places)) {
+      const pts = [4, 2, 1, 0];
+      res.places.forEach((p, idx) => {
+        if (PLAYERS.includes(p) && p !== base.rest) table[p][i] = pts[idx];
+      });
+    }
+  });
+  return table;
+}
+
+function esc(s) {
+  return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+function renderSchedule() {
+  const tbody = document.getElementById("schedule-body");
+  tbody.innerHTML = "";
+  DEFAULT_ROUNDS.forEach((base, i) => {
+    const r = roundData(i);
+    const res = state.results[i] || {};
+    const tr = document.createElement("tr");
+
+    // Round number
+    const tdNum = document.createElement("td");
+    tdNum.className = "num"; tdNum.textContent = i + 1;
+    tr.appendChild(tdNum);
+
+    // Mode (editable)
+    tr.appendChild(editableCell(r.mode, "mode", i));
+    // Map (editable)
+    tr.appendChild(editableCell(r.map, "map", i, r.era));
+
+    // Matchup
+    const tdMatch = document.createElement("td");
+    if (r.type === "team") {
+      tdMatch.innerHTML =
+        '<span class="teamA">' + r.teams[0].map(esc).join(" &amp; ") + '</span><span class="vs">vs.</span>' +
+        '<span class="teamB">' + r.teams[1].map(esc).join(" &amp; ") + '</span>';
+    } else {
+      tdMatch.textContent = r.players.join(" vs. ");
+    }
+    tr.appendChild(tdMatch);
+
+    // Rest
+    const tdRest = document.createElement("td");
+    tdRest.innerHTML = '<span class="rest">' + esc(r.rest) + '</span>';
+    tr.appendChild(tdRest);
+
+    // Result entry
+    const tdRes = document.createElement("td");
+    if (r.type === "team") {
+      const btnA = document.createElement("button");
+      btnA.textContent = "Team 1 wins";
+      if (res.winner === 0) btnA.classList.add("chosen");
+      btnA.addEventListener("click", () => setTeamWinner(i, 0));
+      const btnB = document.createElement("button");
+      btnB.textContent = "Team 2 wins";
+      if (res.winner === 1) btnB.classList.add("chosen");
+      btnB.addEventListener("click", () => setTeamWinner(i, 1));
+      const inpA = document.createElement("input");
+      inpA.type = "text"; inpA.className = "score-input"; inpA.placeholder = "Score";
+      inpA.value = res.scoreA || "";
+      inpA.setAttribute("aria-label", "Team 1 score, round " + (i + 1));
+      inpA.addEventListener("change", () => { setResultField(i, "scoreA", inpA.value); });
+      const inpB = document.createElement("input");
+      inpB.type = "text"; inpB.className = "score-input"; inpB.placeholder = "Score";
+      inpB.value = res.scoreB || "";
+      inpB.setAttribute("aria-label", "Team 2 score, round " + (i + 1));
+      inpB.addEventListener("change", () => { setResultField(i, "scoreB", inpB.value); });
+      const clear = document.createElement("button");
+      clear.textContent = "Clear";
+      clear.addEventListener("click", () => { delete state.results[i]; saveState(); renderAll(); });
+      tdRes.appendChild(btnA); tdRes.appendChild(document.createTextNode(" "));
+      tdRes.appendChild(inpA); tdRes.appendChild(document.createTextNode(" - "));
+      tdRes.appendChild(inpB); tdRes.appendChild(document.createTextNode(" "));
+      tdRes.appendChild(btnB); tdRes.appendChild(document.createTextNode(" "));
+      tdRes.appendChild(clear);
+      if (res.winner === 0 || res.winner === 1) {
+        const line = document.createElement("div");
+        line.className = "result-line";
+        const winTeam = r.teams[res.winner].join(" & ");
+        const sc = (res.scoreA || res.scoreB) ? (" (" + (res.scoreA || "?") + " - " + (res.scoreB || "?") + ")") : "";
+        line.textContent = "Winner: " + winTeam + " +3 each" + sc;
+        tdRes.appendChild(line);
+      }
+    } else {
+      const labels = ["1st (+4)", "2nd (+2)", "3rd (+1)", "4th (0)"];
+      const places = Array.isArray(res.places) ? res.places : ["", "", "", ""];
+      const used = new Set();
+      labels.forEach((lab, idx) => {
+        const sel = document.createElement("select");
+        sel.setAttribute("aria-label", lab + ", round " + (i + 1));
+        const blank = document.createElement("option");
+        blank.value = ""; blank.textContent = lab;
+        sel.appendChild(blank);
+        r.players.forEach(p => {
+          const opt = document.createElement("option");
+          opt.value = p; opt.textContent = p;
+          if (places[idx] === p) opt.selected = true;
+          sel.appendChild(opt);
+        });
+        sel.addEventListener("change", () => setFfaPlace(i, idx, sel.value));
+        tdRes.appendChild(sel); tdRes.appendChild(document.createTextNode(" "));
+      });
+      const clear = document.createElement("button");
+      clear.textContent = "Clear";
+      clear.addEventListener("click", () => { delete state.results[i]; saveState(); renderAll(); });
+      tdRes.appendChild(clear);
+      const seen = places.filter(Boolean);
+      if (seen.length !== new Set(seen).size) {
+        const w = document.createElement("div");
+        w.className = "warn";
+        w.textContent = "Same player picked twice in this round. Fix the placements.";
+        tdRes.appendChild(w);
+      }
+    }
+    tr.appendChild(tdRes);
+    tbody.appendChild(tr);
+  });
+}
+
+function editableCell(value, field, i, suffix) {
+  const td = document.createElement("td");
+  const span = document.createElement("span");
+  span.className = "view-text"; span.textContent = value;
+  const inp = document.createElement("input");
+  inp.type = "text"; inp.className = "edit-input"; inp.value = value;
+  inp.setAttribute("aria-label", field + " for round " + (i + 1));
+  inp.addEventListener("change", () => {
+    if (!state.edits[i]) state.edits[i] = {};
+    state.edits[i][field] = inp.value;
+    saveState(); renderAll();
+  });
+  td.appendChild(span); td.appendChild(inp);
+  if (suffix) {
+    const tag = document.createElement("span");
+    tag.className = "era-tag"; tag.textContent = suffix;
+    td.appendChild(tag);
+  }
+  return td;
+}
+
+function setTeamWinner(i, winner) {
+  if (!state.results[i]) state.results[i] = {};
+  state.results[i].winner = winner;
+  saveState(); renderAll();
+}
+function setResultField(i, field, value) {
+  if (!state.results[i]) state.results[i] = {};
+  state.results[i][field] = value;
+  saveState(); renderAll();
+}
+function setFfaPlace(i, idx, value) {
+  if (!state.results[i]) state.results[i] = { places: ["", "", "", ""] };
+  if (!Array.isArray(state.results[i].places)) state.results[i].places = ["", "", "", ""];
+  state.results[i].places[idx] = value;
+  saveState(); renderAll();
+}
+
+function renderStandings() {
+  const points = computePoints();
+  const totals = PLAYERS.map(p => {
+    let total = 0;
+    for (let i = 0; i < 10; i++) {
+      const v = points[p][i];
+      if (typeof v === "number") total += v;
+    }
+    return { player: p, total };
+  });
+  totals.sort((a, b) => b.total - a.total);
+  const rankOf = {};
+  let currentRank = 0, prevTotal = null;
+  totals.forEach((t, idx) => {
+    if (t.total !== prevTotal) { currentRank = idx + 1; prevTotal = t.total; }
+    rankOf[t.player] = currentRank;
+  });
+
+  const head = document.getElementById("standings-head");
+  let headHtml = "<tr><th>Player</th>";
+  for (let i = 1; i <= 10; i++) headHtml += '<th class="num">R' + i + "</th>";
+  headHtml += '<th class="num">Total</th><th class="num">Rank</th></tr>';
+  head.innerHTML = headHtml;
+
+  const body = document.getElementById("standings-body");
+  body.innerHTML = "";
+  PLAYERS.forEach(p => {
+    const tr = document.createElement("tr");
+    const tdName = document.createElement("td");
+    tdName.innerHTML = "<strong>" + esc(p) + "</strong>";
+    tr.appendChild(tdName);
+    for (let i = 0; i < 10; i++) {
+      const td = document.createElement("td");
+      td.className = "points";
+      const v = points[p][i];
+      if (v === "REST") { td.innerHTML = '<span class="rest">REST</span>'; }
+      else { td.textContent = v; }
+      tr.appendChild(td);
+    }
+    const tdTotal = document.createElement("td");
+    tdTotal.className = "total";
+    tdTotal.textContent = totals.find(t => t.player === p).total;
+    tr.appendChild(tdTotal);
+    const tdRank = document.createElement("td");
+    const rk = rankOf[p];
+    tdRank.className = "rank" + (rk <= 3 ? " rank" + rk : "");
+    tdRank.textContent = rk;
+    tr.appendChild(tdRank);
+    body.appendChild(tr);
+  });
+
+  // Rest verification
+  const restList = document.getElementById("rest-list");
+  restList.innerHTML = "";
+  PLAYERS.forEach(p => {
+    const rests = [];
+    DEFAULT_ROUNDS.forEach((r, i) => { if (r.rest === p) rests.push("R" + (i + 1)); });
+    const li = document.createElement("li");
+    li.innerHTML = "<strong>" + esc(p) + ":</strong> resting " + rests.join(" &amp; ") +
+      " (plays 8 rounds = 80 mins)";
+    restList.appendChild(li);
+  });
+}
+
+function renderAll() {
+  renderSchedule();
+  renderStandings();
+}
+
+// Edit mode toggle + reset
+document.getElementById("edit-toggle").addEventListener("click", function () {
+  const on = document.body.classList.toggle("editing");
+  this.textContent = on ? "Done editing" : "Edit schedule";
+});
+document.getElementById("reset-all").addEventListener("click", function () {
+  if (window.confirm("Clear all entered scores and schedule edits? The default schedule stays.")) {
+    state = { edits: {}, results: {} };
+    saveState(); renderAll();
+  }
+});
+
+// Round timer (12:00 countdown)
+const ROUND_SECONDS = 10 * 60;
+let remaining = ROUND_SECONDS, timerId = null;
+const clockEl = document.getElementById("clock");
+function paintClock() {
+  const m = Math.floor(remaining / 60), s = remaining % 60;
+  clockEl.textContent = String(m).padStart(2, "0") + ":" + String(s).padStart(2, "0");
+  clockEl.classList.toggle("low", remaining <= 60 && remaining > 0);
+}
+document.getElementById("timer-start").addEventListener("click", () => {
+  if (timerId) return;
+  timerId = setInterval(() => {
+    if (remaining > 0) { remaining--; paintClock(); }
+    else { clearInterval(timerId); timerId = null; }
+  }, 1000);
+});
+document.getElementById("timer-pause").addEventListener("click", () => {
+  if (timerId) { clearInterval(timerId); timerId = null; }
+});
+document.getElementById("timer-reset").addEventListener("click", () => {
+  if (timerId) { clearInterval(timerId); timerId = null; }
+  remaining = ROUND_SECONDS; paintClock();
+});
+paintClock();
+renderAll();
+</script>
+</body>
+</html>
