@@ -269,6 +269,7 @@ function renderSchedule() {
       }
     } else {
       const labels = ["1st (+4)", "2nd (+2)", "3rd (+1)", "4th (0)"];
+      const ffaPts = [4, 2, 1, 0];
       const places = Array.isArray(res.places) ? res.places : ["", "", "", ""];
       const used = new Set();
       labels.forEach((lab, idx) => {
@@ -279,7 +280,7 @@ function renderSchedule() {
         sel.appendChild(blank);
         r.players.forEach(p => {
           const opt = document.createElement("option");
-          opt.value = p; opt.textContent = p;
+          opt.value = p; opt.textContent = p + " (+" + ffaPts[idx] + " pts)";
           if (places[idx] === p) opt.selected = true;
           sel.appendChild(opt);
         });
