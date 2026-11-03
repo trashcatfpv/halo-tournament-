@@ -84,7 +84,7 @@
   <section id="scoring-section">
     <h2>Scoring System</h2>
     <ul class="rules">
-      <li><strong>2v2 Team Modes</strong> (Slayer, Oddball, CTF, SWAT): winning team <strong>+3 points</strong> to each winning player, losing team 0.</li>
+      <li><strong>2v2 Team Modes</strong> (Slayer, CTF, SWAT): winning team <strong>+3 points</strong> to each winning player, losing team 0.</li>
       <li><strong>4-Player Free-For-All</strong> (FFA Fiesta, Classic, Snipers): 1st <strong>+4</strong>, 2nd <strong>+2</strong>, 3rd <strong>+1</strong>, 4th <strong>0</strong>.</li>
       <li><strong>Resting players:</strong> 0 points. Everyone rests exactly 2 rounds.</li>
     </ul>
@@ -134,13 +134,13 @@ const STORAGE_KEY = "halo-scoreboard-v1";
 const DEFAULT_ROUNDS = [
   { mode: "2v2 Team Slayer", map: "Lockout / Midship",      type: "team", teams: [["Joe","Brian"],["DJ","Fort"]],     rest: "Money", era: "Halo 2" },
   { mode: "4P FFA Fiesta",   map: "Midship / Beaver Creek", type: "ffa",  players: ["Joe","Brian","DJ","Money"],       rest: "Fort",  era: "Halo 2" },
-  { mode: "2v2 Oddball",     map: "Beaver Creek / Zanzibar", type: "team", teams: [["Joe","Fort"],["Brian","Money"]],   rest: "DJ",    era: "Halo 2" },
+  { mode: "4P FFA Slayer",   map: "Beaver Creek / Zanzibar", type: "ffa", players: ["Joe","Fort","Brian","Money"],      rest: "DJ",    era: "Halo 2" },
   { mode: "2v2 SWAT",        map: "Ivory Tower / Zanzibar", type: "team", teams: [["DJ","Money"],["Joe","Fort"]],      rest: "Brian", era: "Halo 2" },
   { mode: "4P FFA Classic",  map: "Lockout / Ivory Tower",  type: "ffa",  players: ["Brian","DJ","Fort","Money"],      rest: "Joe",   era: "Halo 2" },
   { mode: "2v2 CTF",         map: "The Pit / Construct",    type: "team", teams: [["Joe","DJ"],["Brian","Fort"]],      rest: "Money", era: "Halo 3" },
   { mode: "2v2 Team Slayer", map: "Construct / Guardian",   type: "team", teams: [["Joe","Money"],["DJ","Fort"]],      rest: "Brian", era: "Halo 3" },
   { mode: "4P FFA Fiesta",   map: "The Pit / Guardian",     type: "ffa",  players: ["Joe","Brian","Fort","Money"],     rest: "DJ",    era: "Halo 3" },
-  { mode: "2v2 Oddball",     map: "Construct / The Pit",    type: "team", teams: [["Brian","DJ"],["Fort","Money"]],     rest: "Joe",   era: "Halo 3" },
+  { mode: "4P FFA Slayer",   map: "Construct / The Pit",    type: "ffa",  players: ["Brian","DJ","Fort","Money"],      rest: "Joe",   era: "Halo 3" },
   { mode: "4P FFA Snipers",  map: "Guardian / Construct",   type: "ffa",  players: ["Joe","Brian","DJ","Money"],       rest: "Fort",  era: "Halo 3" }
 ];
 
