@@ -58,6 +58,7 @@
   tr.drop-target td { border-top:2px solid var(--green); }
   .move-btn { padding:2px 7px; font-size:12px; margin-left:2px; }
   .rest-select { min-width:96px; }
+  button:disabled, input:disabled, select:disabled { opacity:.45; cursor:not-allowed; }
   .cards { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:6px; }
   .pcard { width:148px; text-align:center; }
   .pcard img, .pcard .ph { width:148px; height:185px; object-fit:cover; border-radius:10px; border:2px solid var(--border); background:#0e1420; display:block; }
@@ -102,6 +103,8 @@
     <h2>Match Schedule &amp; Score Sheet <span class="tag">tap Edit schedule to change a mode or map</span></h2>
     <div class="controls">
       <button id="edit-toggle">Edit schedule</button>
+      <button id="lock-scores">Lock scores</button>
+      <span id="lock-note" class="tag"></span>
       <button class="danger" id="reset-all">Reset all scores</button>
     </div>
     <div style="overflow-x:auto;">
@@ -228,10 +231,10 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") return { edits: parsed.edits || {}, results: parsed.results || {}, mapSel: parsed.mapSel || {}, order: parsed.order || [0,1,2,3,4,5,6,7,8,9], swaps: parsed.swaps || {} };
+      if (parsed && typeof parsed === "object") return { edits: parsed.edits || {}, results: parsed.results || {}, mapSel: parsed.mapSel || {}, order: parsed.order || [0,1,2,3,4,5,6,7,8,9], swaps: parsed.swaps || {}, locked: parsed.locked !== undefined ? !!parsed.locked : Object.keys(parsed.results || {}).length > 0 };
     }
   } catch (e) { /* fresh state on bad storage */ }
-  return { edits: {}, results: {}, mapSel: {}, order: [0,1,2,3,4,5,6,7,8,9], swaps: {} };
+  return { edits: {}, results: {}, mapSel: {}, order: [0,1,2,3,4,5,6,7,8,9], swaps: {}, locked: false };
 }
 function saveState() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* storage full/blocked: page still works */ }
@@ -366,6 +369,7 @@ function renderSchedule() {
       else state.swaps[i] = { rest: restSel.value };
       saveState(); renderAll();
     });
+    restSel.disabled = !!state.locked;
     tdRest.appendChild(restSel);
     tr.appendChild(tdRest);
 
@@ -438,6 +442,7 @@ function renderSchedule() {
         tdRes.appendChild(w);
       }
     }
+    if (state.locked) tdRes.querySelectorAll("button, input, select").forEach(el => { el.disabled = true; });
     tr.appendChild(tdRes);
     tr.addEventListener("dragover", (e) => { e.preventDefault(); tr.classList.add("drop-target"); });
     tr.addEventListener("dragleave", () => tr.classList.remove("drop-target"));
@@ -663,9 +668,19 @@ function renderStandings() {
   });
 }
 
+function updateLockUI() {
+  const btn = document.getElementById("lock-scores");
+  const note = document.getElementById("lock-note");
+  const resetBtn = document.getElementById("reset-all");
+  if (btn) btn.textContent = state.locked ? "Unlock scores" : "Lock scores";
+  if (note) note.textContent = state.locked ? "Scores locked" : "";
+  if (resetBtn) resetBtn.disabled = !!state.locked;
+}
+
 function renderAll() {
   renderSchedule();
   renderStandings();
+  updateLockUI();
 }
 
 // Edit mode toggle + reset
@@ -673,9 +688,20 @@ document.getElementById("edit-toggle").addEventListener("click", function () {
   const on = document.body.classList.toggle("editing");
   this.textContent = on ? "Done editing" : "Edit schedule";
 });
+document.getElementById("lock-scores").addEventListener("click", function () {
+  if (!state.locked) {
+    if (!window.confirm("Lock in the scores? Score entry and rest swaps will be disabled.")) return;
+    state.locked = true;
+  } else {
+    if (!window.confirm("Unlock the scores to edit them?")) return;
+    state.locked = false;
+  }
+  saveState(); renderAll();
+});
+
 document.getElementById("reset-all").addEventListener("click", function () {
   if (window.confirm("Clear all entered scores and schedule edits? The default schedule stays.")) {
-    state = { edits: {}, results: {}, mapSel: {}, order: [0,1,2,3,4,5,6,7,8,9], swaps: {} };
+    state = { edits: {}, results: {}, mapSel: {}, order: [0,1,2,3,4,5,6,7,8,9], swaps: {}, locked: false };
     saveState(); renderAll();
   }
 });
