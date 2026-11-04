@@ -53,6 +53,11 @@
   .map-fig { margin:8px 0 0; }
   .map-fig img { width:100%; max-width:340px; border-radius:8px; display:block; }
   .map-fig figcaption { font-size:13px; color:var(--dim); margin-top:4px; }
+  .grip { cursor:grab; color:var(--dim); font-size:16px; padding:0 4px; }
+  .grip:active { cursor:grabbing; }
+  tr.drop-target td { border-top:2px solid var(--green); }
+  .move-btn { padding:2px 7px; font-size:12px; margin-left:2px; }
+  .rest-select { min-width:96px; }
   body.editing .view-text { display:none; }
   footer { text-align:center; color:var(--dim); font-size:13px; padding:10px; }
   @media (max-width:760px) {
@@ -66,7 +71,7 @@
 <header>
   <h1>&#127942; Halo 5-Player LAN Tournament Tracker</h1>
   <p>10 Rounds &middot; 4 Active Players per Round (1 Resting) &middot; 10-Minute Limit per Round</p>
-  <p>Maps: rounds 1&ndash;5 are Halo 2, rounds 6&ndash;10 are Halo 3 &mdash; everyone plays 4 of each.</p>
+  <p>Maps: Halo 2 and Halo 3 rounds &mdash; everyone plays 4 of each. Drag rounds to reorder; change Rest to swap a player out.</p>
   <p>Players: <strong>Joe, Brian, DJ, Fort, Money</strong></p>
 </header>
 <main>
@@ -153,10 +158,10 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      if (parsed && typeof parsed === "object") return { edits: parsed.edits || {}, results: parsed.results || {}, mapSel: parsed.mapSel || {} };
+      if (parsed && typeof parsed === "object") return { edits: parsed.edits || {}, results: parsed.results || {}, mapSel: parsed.mapSel || {}, order: parsed.order || [0,1,2,3,4,5,6,7,8,9], swaps: parsed.swaps || {} };
     }
   } catch (e) { /* fresh state on bad storage */ }
-  return { edits: {}, results: {}, mapSel: {} };
+  return { edits: {}, results: {}, mapSel: {}, order: [0,1,2,3,4,5,6,7,8,9], swaps: {} };
 }
 function saveState() {
   try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) { /* storage full/blocked: page still works */ }
@@ -164,11 +169,27 @@ function saveState() {
 function roundData(i) {
   const base = DEFAULT_ROUNDS[i];
   const edit = state.edits[i] || {};
+  const swap = (state.swaps && state.swaps[i]) || {};
+  let rest = swap.rest || base.rest;
+  let teams = base.teams, players = base.players;
+  if (rest !== base.rest) {
+    if (base.type === "team") {
+      teams = base.teams.map(t => t.map(pl => (pl === rest ? base.rest : pl)));
+    } else {
+      players = PLAYERS.filter(pl => pl !== rest);
+    }
+  }
   return {
     mode: edit.mode !== undefined ? edit.mode : base.mode,
     map: edit.map !== undefined ? edit.map : base.map,
-    type: base.type, teams: base.teams, players: base.players, rest: base.rest, era: base.era
+    type: base.type, teams: teams, players: players, rest: rest, era: base.era
   };
+}
+
+function currentOrder() {
+  const o = (state.order && Array.isArray(state.order)) ? state.order : [];
+  const valid = o.length === 10 && o.slice().sort((x, y) => x - y).join(",") === "0,1,2,3,4,5,6,7,8,9";
+  return valid ? o.slice() : [0,1,2,3,4,5,6,7,8,9];
 }
 
 // Points per player per round, from results. Returns {player: {roundIndex: points|null("REST")}}
@@ -176,17 +197,18 @@ function computePoints() {
   const table = {};
   PLAYERS.forEach(p => { table[p] = {}; });
   DEFAULT_ROUNDS.forEach((base, i) => {
+    const r = roundData(i);
     const res = state.results[i];
-    PLAYERS.forEach(p => { table[p][i] = (p === base.rest) ? "REST" : 0; });
+    PLAYERS.forEach(p => { table[p][i] = (p === r.rest) ? "REST" : 0; });
     if (!res) return;
-    if (base.type === "team") {
+    if (r.type === "team") {
       if (res.winner === 0 || res.winner === 1) {
-        base.teams[res.winner].forEach(p => { table[p][i] = 3; });
+        r.teams[res.winner].forEach(p => { table[p][i] = 3; });
       }
-    } else if (base.type === "ffa" && Array.isArray(res.places)) {
+    } else if (r.type === "ffa" && Array.isArray(res.places)) {
       const pts = [4, 2, 1, 0];
       res.places.forEach((p, idx) => {
-        if (PLAYERS.includes(p) && p !== base.rest) table[p][i] = pts[idx];
+        if (PLAYERS.includes(p) && p !== r.rest) table[p][i] = pts[idx];
       });
     }
   });
@@ -197,17 +219,47 @@ function esc(s) {
   return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
 
+function moveRound(k, dir) {
+  const order = currentOrder();
+  const j = k + dir;
+  if (j < 0 || j > 9) return;
+  const tmp = order[k]; order[k] = order[j]; order[j] = tmp;
+  state.order = order; saveState(); renderAll();
+}
+
 function renderSchedule() {
   const tbody = document.getElementById("schedule-body");
   tbody.innerHTML = "";
-  DEFAULT_ROUNDS.forEach((base, i) => {
+  currentOrder().forEach((i, k) => {
     const r = roundData(i);
     const res = state.results[i] || {};
     const tr = document.createElement("tr");
 
-    // Round number
+    // Round number + drag handle + move buttons
     const tdNum = document.createElement("td");
-    tdNum.className = "num"; tdNum.textContent = i + 1;
+    tdNum.className = "num";
+    const grip = document.createElement("span");
+    grip.className = "grip"; grip.textContent = "\u283f"; grip.draggable = true;
+    grip.setAttribute("aria-label", "Drag to reorder round " + (k + 1));
+    grip.addEventListener("dragstart", (e) => {
+      e.dataTransfer.setData("text/plain", String(i));
+      e.dataTransfer.effectAllowed = "move";
+    });
+    grip.addEventListener("dragend", () => {
+      document.querySelectorAll(".drop-target").forEach(el => el.classList.remove("drop-target"));
+    });
+    const pos = document.createElement("span");
+    pos.textContent = " " + (k + 1) + " ";
+    const upBtn = document.createElement("button");
+    upBtn.className = "move-btn"; upBtn.textContent = "\u2191"; upBtn.disabled = (k === 0);
+    upBtn.setAttribute("aria-label", "Move round " + (k + 1) + " up");
+    upBtn.addEventListener("click", () => moveRound(k, -1));
+    const downBtn = document.createElement("button");
+    downBtn.className = "move-btn"; downBtn.textContent = "\u2193"; downBtn.disabled = (k === 9);
+    downBtn.setAttribute("aria-label", "Move round " + (k + 1) + " down");
+    downBtn.addEventListener("click", () => moveRound(k, 1));
+    tdNum.appendChild(grip); tdNum.appendChild(pos);
+    tdNum.appendChild(upBtn); tdNum.appendChild(downBtn);
     tr.appendChild(tdNum);
 
     // Mode (editable)
@@ -226,9 +278,25 @@ function renderSchedule() {
     }
     tr.appendChild(tdMatch);
 
-    // Rest
+    // Rest (changeable: swapping who sits out fills their slot with the previous rest player)
     const tdRest = document.createElement("td");
-    tdRest.innerHTML = '<span class="rest">' + esc(r.rest) + '</span>';
+    const restSel = document.createElement("select");
+    restSel.className = "rest-select";
+    restSel.setAttribute("aria-label", "Resting player, round " + (k + 1));
+    PLAYERS.forEach(pl => {
+      const opt = document.createElement("option");
+      opt.value = pl; opt.textContent = pl;
+      if (pl === r.rest) opt.selected = true;
+      restSel.appendChild(opt);
+    });
+    restSel.addEventListener("change", () => {
+      const base = DEFAULT_ROUNDS[i];
+      if (!state.swaps) state.swaps = {};
+      if (restSel.value === base.rest) delete state.swaps[i];
+      else state.swaps[i] = { rest: restSel.value };
+      saveState(); renderAll();
+    });
+    tdRest.appendChild(restSel);
     tr.appendChild(tdRest);
 
     // Result entry
@@ -301,6 +369,16 @@ function renderSchedule() {
       }
     }
     tr.appendChild(tdRes);
+    tr.addEventListener("dragover", (e) => { e.preventDefault(); tr.classList.add("drop-target"); });
+    tr.addEventListener("dragleave", () => tr.classList.remove("drop-target"));
+    tr.addEventListener("drop", (e) => {
+      e.preventDefault(); tr.classList.remove("drop-target");
+      const dragged = parseInt(e.dataTransfer.getData("text/plain"), 10);
+      if (Number.isNaN(dragged) || dragged === i) return;
+      const order = currentOrder().filter(x => x !== dragged);
+      order.splice(k, 0, dragged);
+      state.order = order; saveState(); renderAll();
+    });
     tbody.appendChild(tr);
   });
 }
@@ -441,14 +519,14 @@ function renderStandings() {
     const tdName = document.createElement("td");
     tdName.innerHTML = "<strong>" + esc(p) + "</strong>";
     tr.appendChild(tdName);
-    for (let i = 0; i < 10; i++) {
+    currentOrder().forEach((i) => {
       const td = document.createElement("td");
       td.className = "points";
       const v = points[p][i];
       if (v === "REST") { td.innerHTML = '<span class="rest">REST</span>'; }
       else { td.textContent = v; }
       tr.appendChild(td);
-    }
+    });
     const tdTotal = document.createElement("td");
     tdTotal.className = "total";
     tdTotal.textContent = totals.find(t => t.player === p).total;
@@ -464,9 +542,10 @@ function renderStandings() {
   // Rest verification
   const restList = document.getElementById("rest-list");
   restList.innerHTML = "";
+  const order = currentOrder();
   PLAYERS.forEach(p => {
     const rests = [];
-    DEFAULT_ROUNDS.forEach((r, i) => { if (r.rest === p) rests.push("R" + (i + 1)); });
+    order.forEach((baseIdx, k) => { if (roundData(baseIdx).rest === p) rests.push("R" + (k + 1)); });
     const li = document.createElement("li");
     li.innerHTML = "<strong>" + esc(p) + ":</strong> resting " + rests.join(" &amp; ") +
       " (plays 8 rounds = 80 mins)";
@@ -486,7 +565,7 @@ document.getElementById("edit-toggle").addEventListener("click", function () {
 });
 document.getElementById("reset-all").addEventListener("click", function () {
   if (window.confirm("Clear all entered scores and schedule edits? The default schedule stays.")) {
-    state = { edits: {}, results: {}, mapSel: {} };
+    state = { edits: {}, results: {}, mapSel: {}, order: [0,1,2,3,4,5,6,7,8,9], swaps: {} };
     saveState(); renderAll();
   }
 });
